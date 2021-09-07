@@ -6,6 +6,10 @@ public class EstabelecimentoRequest {
     private String cidade;
     private String endereco;
 
+    @Deprecated
+    public EstabelecimentoRequest() {
+    }
+
     public EstabelecimentoRequest(String nome, String cidade, String endereco) {
         this.nome = nome;
         this.cidade = cidade;
@@ -14,5 +18,26 @@ public class EstabelecimentoRequest {
 
     public Estabelecimento toEsbalecimento() {
         return new Estabelecimento(this.nome, this.cidade, this.endereco);
+    }
+
+    public String getNome() {
+        return nome;
+    }
+
+    public String getCidade() {
+        return cidade;
+    }
+
+    public String getEndereco() {
+        return endereco;
+    }
+
+    @Override
+    public String toString() {
+        return "Estabelecimento{" +
+                "nome='" + nome + '\'' +
+                ", cidade='" + cidade + '\'' +
+                ", endereco='" + endereco + '\'' +
+                '}';
     }
 }

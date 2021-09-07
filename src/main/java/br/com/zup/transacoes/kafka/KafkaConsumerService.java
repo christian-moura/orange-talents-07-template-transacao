@@ -1,53 +1,48 @@
 package br.com.zup.transacoes.kafka;
 
-import br.com.zup.transacoes.kafka.componentes.GsonDeserializer;
+
+import br.com.zup.transacoes.transacao.TransacaoRequest;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+import org.springframework.kafka.support.serializer.JsonDeserializer;
 
-import java.io.Closeable;
-import java.time.Duration;
-import java.util.Collections;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.HashMap;
+import java.util.Map;
 
-public class KafkaConsumerService<T> implements Closeable {
+@Configuration
+public class KafkaConsumerService {
 
-    private final KafkaConsumer<String, T> consumer;
-    private final ConsumerFunction parse;
+    private final KafkaProperties kafkaProperties;
 
-
-    public KafkaConsumerService(String groupId , String topico, ConsumerFunction parse,  Class<T> typeClass) {
-        this.parse = parse;
-        this.consumer = new KafkaConsumer<>(properties(typeClass, groupId));
-        consumer.subscribe(Collections.singletonList(topico));
+    public KafkaConsumerService(KafkaProperties kafkaProperties) {
+        this.kafkaProperties = kafkaProperties;
     }
 
-    public void run(){
-        while(true){
-            var records = consumer.poll(Duration.ofMillis(100));
-            if(!records.isEmpty()){
-                System.out.println("Foram encontrados "+ records.count()+ " registros");
-                for(var record : records){
-                    parse.service(record);
-                }
-            }
-        }
-    }
-
-    private Properties properties(Class<T> typeClass, String groupId) {
-        var properties = new Properties();
-        properties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:9092");
-        properties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        properties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, GsonDeserializer.class.getName());
-        properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
-        properties.setProperty(ConsumerConfig.CLIENT_ID_CONFIG, UUID.randomUUID().toString());
-        properties.setProperty(GsonDeserializer.TYPE_CLASS_CONFIG, typeClass.getName());
+    public Map<String, Object> consumerConfigurations() {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers());
+        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, kafkaProperties.getConsumer().getKeyDeserializer());
+        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, kafkaProperties.getConsumer().getValueDeserializer());
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, kafkaProperties.getConsumer().getGroupId());
+        properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, kafkaProperties.getConsumer().getAutoOffsetReset());
         return properties;
     }
-
-    @Override
-    public void close() {
-        consumer.close();
+    @Bean
+    public ConsumerFactory<String, TransacaoRequest> transactionConsumerFactory() {
+        StringDeserializer stringDeserializer = new StringDeserializer();
+        JsonDeserializer<TransacaoRequest> jsonDeserializer = new JsonDeserializer<>(TransacaoRequest.class, false);
+        return new DefaultKafkaConsumerFactory<>(consumerConfigurations(), stringDeserializer, jsonDeserializer);
+    }
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, TransacaoRequest> kafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, TransacaoRequest> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(transactionConsumerFactory());
+        return factory;
     }
 }

@@ -1,24 +1,21 @@
 package br.com.zup.transacoes.transacao;
 
-import br.com.zup.transacoes.kafka.KafkaConsumerService;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
-@Service
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Component;
+
+@Component
 public class TransacaoService{
 
     private TransacaoRepository transacaoRepository;
-    private KafkaConsumerService kafkaConsumerService;
 
-    @Autowired
     public TransacaoService(TransacaoRepository transacaoRepository) {
         this.transacaoRepository = transacaoRepository;
-        this.kafkaConsumerService = new KafkaConsumerService(TransacaoService.class.getSimpleName(),
-                "transacoes", this::service, TransacaoRequest.class);
-           kafkaConsumerService.run();
     }
-    private void service(ConsumerRecord<String, TransacaoRequest> record){
-        transacaoRepository.save(record.value().toTransacao());
+
+    @KafkaListener(topics = "transacoes")
+    public void ouvir(TransacaoRequest transacaoRequest) {
+        System.out.println(transacaoRequest);
+        transacaoRepository.save(transacaoRequest.toTransacao());
     }
 }
