@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
@@ -26,9 +25,12 @@ public class TransacaoController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<List<TransacaoResponse>>buscarTransacoesPorIdCartao(@PathVariable("id") String id,
-                                                                              @PageableDefault(sort = "efetivadaEm", direction = Sort.Direction.DESC, page = 0, size = 10) Pageable paginacao){
+    public ResponseEntity<?>buscarTransacoesPorIdCartao(@PathVariable("id") String id,
+                                                        @PageableDefault(sort = "efetivadaEm",
+                                                                direction = Sort.Direction.DESC, page = 0,
+                                                                size = 10) Pageable paginacao){
         Page<Transacao> transacoes = transacaoRepository.findAllByCartaoId(id,paginacao);
+        if(transacoes.isEmpty()) return ResponseEntity.notFound().build();
         return ResponseEntity.ok(transacoes.get().map(TransacaoResponse::new).collect(Collectors.toList()));
     }
 }
